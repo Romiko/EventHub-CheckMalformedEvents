@@ -73,6 +73,7 @@ namespace CheckMalformedEvents
                 Formatting = Formatting.Indented
             };
 
+            int count = 0;
             await foreach (PartitionEvent receivedEvent in eventHubClient.ReadEventsFromPartitionAsync(partitionId, startingPosition, cancellationSource.Token))
             {
                 using var sr = new StreamReader(receivedEvent.Data.BodyAsStream);
@@ -80,16 +81,18 @@ namespace CheckMalformedEvents
                 var partition = receivedEvent.Data.PartitionKey;
                 var offset = receivedEvent.Data.Offset;
                 var sequence = receivedEvent.Data.SequenceNumber;
-                //sw.WriteLine($"Partition: { partition}, Offset: {offset}, Sequence Number: { sequence } \r\n {data}");
+
                 try
                 {
                     dynamic message = JsonConvert.DeserializeObject(data);
                     message.AzureEventHubsPartition = partition;
                     message.AzureEventHubsOffset = offset;
                     message.AzureEventHubsSequence = sequence;
-                    message.AzureEnqueuedTime = receivedEvent.Data.EnqueuedTime;
-
+                    message.AzureEnqueuedTime = receivedEvent.Data.EnqueuedTime.ToString("o");
                     dataList.Add(message);
+
+                    if (count == 0)
+                        Console.WriteLine($"First Message EnqueueTime: {message.AzureEnqueuedTime}, Offset: {message.AzureEventHubsOffset}, Sequence: {message.AzureEventHubsSequence}");
                 }
                 catch (Exception ex)
                 {
@@ -97,11 +100,13 @@ namespace CheckMalformedEvents
                     Console.WriteLine(ex.Message);
                 }
 
-                if (receivedEvent.Data.EnqueuedTime > endEnqueueTime.AddSeconds(1))
+                if (receivedEvent.Data.EnqueuedTime > endEnqueueTime)
                 {
-                    Console.WriteLine($"Reached the end of stream for enqueTime {endEnqueueTime}");
+                    Console.WriteLine($"Last Message EnqueueTime: {receivedEvent.Data.EnqueuedTime:o}, Offset: {receivedEvent.Data.Offset}, Sequence: {receivedEvent.Data.SequenceNumber}");
+                    Console.WriteLine($"-----------");
                     break;
                 }
+                count++;
             }
 
             var output = JsonConvert.SerializeObject(dataList, jsettings);
