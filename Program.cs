@@ -94,7 +94,7 @@ namespace CheckMalformedEvents
                     Console.WriteLine(ex.Message);
                 }
 
-                if (receivedEvent.Data.EnqueuedTime > endEnqueueTime)
+                if (receivedEvent.Data.EnqueuedTime.AddSeconds(1) > endEnqueueTime)
                 {
                     Console.WriteLine($"Reached the end of stream for enqueTime {endEnqueueTime}");
                     break;
