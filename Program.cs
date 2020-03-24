@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure.Messaging.EventHubs.Consumer;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace CheckMalformedEvents
 {
@@ -67,7 +69,13 @@ namespace CheckMalformedEvents
             await foreach (PartitionEvent receivedEvent in eventHubClient.ReadEventsFromPartitionAsync(partitionId, startingPosition, cancellationSource.Token))
             {
                 using var sr = new StreamReader(receivedEvent.Data.BodyAsStream);
-                sw.WriteLine($"Sequence Number: { receivedEvent.Data.SequenceNumber} \r\n {sr.ReadToEnd()}");
+                var data = sr.ReadToEnd();
+                var sequence = receivedEvent.Data.SequenceNumber;
+                sw.WriteLine($"Sequence Number: { sequence } \r\n {data}");
+
+                var converter = new ExpandoObjectConverter();
+                dynamic message = JsonConvert.DeserializeObject<ExpandoObjectConverter>(data);
+                Console.WriteLine($"Json is valid for sequence {sequence}");
             }
 
             Console.WriteLine($"\r\n Output located at: {path}");
