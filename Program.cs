@@ -86,6 +86,11 @@ namespace CheckMalformedEvents
                 try
                 {
                     dynamic message = JsonConvert.DeserializeObject(data);
+                    message.AzureEventHubsPartition = partition;
+                    message.AzureEventHubsOffset = offset;
+                    message.AzureEventHubsSequence = sequence;
+                    message.EnqueuedTime = receivedEvent.Data.EnqueuedTime;
+
                     dataList.Add(message);
                 }
                 catch (Exception ex)
