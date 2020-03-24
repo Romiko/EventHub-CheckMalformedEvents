@@ -103,6 +103,7 @@ namespace CheckMalformedEvents
                 if (receivedEvent.Data.EnqueuedTime > endEnqueueTime)
                 {
                     Console.WriteLine($"Last Message EnqueueTime: {receivedEvent.Data.EnqueuedTime:o}, Offset: {receivedEvent.Data.Offset}, Sequence: {receivedEvent.Data.SequenceNumber}");
+                    Console.WriteLine($"Total Events Streamed: {dataList.Count}");
                     Console.WriteLine($"-----------");
                     break;
                 }
