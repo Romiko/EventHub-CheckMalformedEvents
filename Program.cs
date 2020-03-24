@@ -46,7 +46,6 @@ namespace CheckMalformedEvents
                 return;
             }
 
-            //int streamDataInSeconds = int.Parse(configuration["StreamDataInSeconds"]);
             var processingEnqueueEndTimeUTC = DateTimeOffset.Parse(configuration["ProcessingEnqueueEndTimeUTC"]);
 
             EventPosition startingPosition = EventPosition.FromSequenceNumber(sequenceNumber);
