@@ -30,9 +30,9 @@ namespace CheckMalformedEvents
             Console.WriteLine("Sample Error Message to troubleshoot - First get the errors from the Streaming Analytics Jobs Input blade.\r\n");
             Console.WriteLine("[11:36:35] Source 'EventHub' had 76 occurrences of kind 'InputDeserializerError.TypeConversionError' between processing times '2020-03-24T00:31:36.1109029Z' and '2020-03-24T00:36:35.9676583Z'. Could not deserialize the input event(s) from resource 'Partition: [11], Offset: [86672449297304], SequenceNumber: [137530194]' as Json. Some possible reasons: 1) Malformed events 2) Input source configured with incorrect serialization format\r\n");
 
-            partitionId = configuration.GetSection("Settings").GetSection("partitionId").Value;
+            partitionId = configuration["partitionId"];
             long offset;
-            if (long.TryParse(configuration.GetSection("Settings").GetSection("offsetNumber").Value, out offset) == false)
+            if (long.TryParse(configuration["offsetNumber"], out offset) == false)
             {
                 Console.Write("Enter a valid offset value.");
                 Console.ReadLine();
@@ -40,17 +40,19 @@ namespace CheckMalformedEvents
             }
 
             long sequenceNumber;
-            if (long.TryParse(configuration.GetSection("Settings").GetSection("SequenceNumber").Value, out sequenceNumber) == false)
+            if (long.TryParse(configuration["SequenceNumber"], out sequenceNumber) == false)
             {
                 Console.Write("Enter a valid SequenceNumber value.");
                 Console.ReadLine();
                 return;
             }
 
+            int streamDataInSeconds = int.Parse(configuration["StreamDataInSeconds"]);
+
             EventPosition startingPosition = EventPosition.FromSequenceNumber(sequenceNumber);
             try
             {
-                GetEvents(eventHubClient, startingPosition).Wait();
+                GetEvents(eventHubClient, startingPosition, streamDataInSeconds).Wait();
             }
             catch (AggregateException e)
             {
@@ -59,10 +61,10 @@ namespace CheckMalformedEvents
             }
         }
 
-        private static async Task<CancellationTokenSource> GetEvents(EventHubConsumerClient eventHubClient, EventPosition startingPosition)
+        private static async Task<CancellationTokenSource> GetEvents(EventHubConsumerClient eventHubClient, EventPosition startingPosition, int streamDataInSeconds)
         {
             var cancellationSource = new CancellationTokenSource();
-            cancellationSource.CancelAfter(TimeSpan.FromSeconds(1));
+            cancellationSource.CancelAfter(TimeSpan.FromSeconds(streamDataInSeconds));
             string path = Path.Combine(Directory.GetCurrentDirectory(), "Events.json");
             using var sw = new StreamWriter(path);
 
