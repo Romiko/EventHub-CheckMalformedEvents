@@ -87,7 +87,7 @@ namespace CheckMalformedEvents
                     message.AzureEventHubsPartition = partition;
                     message.AzureEventHubsOffset = offset;
                     message.AzureEventHubsSequence = sequence;
-                    message.EnqueuedTime = receivedEvent.Data.EnqueuedTime;
+                    message.AzureEnqueuedTime = receivedEvent.Data.EnqueuedTime;
 
                     dataList.Add(message);
                 }
@@ -97,7 +97,7 @@ namespace CheckMalformedEvents
                     Console.WriteLine(ex.Message);
                 }
 
-                if (receivedEvent.Data.EnqueuedTime.AddSeconds(1) > endEnqueueTime)
+                if (receivedEvent.Data.EnqueuedTime > endEnqueueTime.AddSeconds(1))
                 {
                     Console.WriteLine($"Reached the end of stream for enqueTime {endEnqueueTime}");
                     break;
