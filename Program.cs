@@ -28,7 +28,6 @@ namespace CheckMalformedEvents
 
             Console.WriteLine("This tool is used to troubleshoot malformed messages in an Azure EventHub");
             Console.WriteLine("Sample Error Message to troubleshoot - First get the errors from the Streaming Analytics Jobs Input blade.\r\n");
-            Console.WriteLine("[11:36:35] Source 'EventHub' had 76 occurrences of kind 'InputDeserializerError.TypeConversionError' between processing times '2020-03-24T00:31:36.1109029Z' and '2020-03-24T00:36:35.9676583Z'. Could not deserialize the input event(s) from resource 'Partition: [11], Offset: [86672449297304], SequenceNumber: [137530194]' as Json. Some possible reasons: 1) Malformed events 2) Input source configured with incorrect serialization format\r\n");
 
             partitionId = configuration["partitionId"];
             long offset;
