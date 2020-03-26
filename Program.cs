@@ -34,7 +34,6 @@ namespace CheckMalformedEvents
             if (long.TryParse(configuration["offsetNumber"], out offset) == false)
             {
                 Console.Write("Enter a valid offset value.");
-                Console.ReadLine();
                 return;
             }
 
@@ -42,7 +41,6 @@ namespace CheckMalformedEvents
             if (long.TryParse(configuration["SequenceNumber"], out sequenceNumber) == false)
             {
                 Console.Write("Enter a valid SequenceNumber value.");
-                Console.ReadLine();
                 return;
             }
 
