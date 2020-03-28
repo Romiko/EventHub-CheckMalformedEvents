@@ -79,6 +79,8 @@ namespace CheckMalformedEvents
             int count = 0;
             using FileStream sourceStream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Write, bufferSize: 4096, useAsync: true);
             {
+                byte[] encodedText = Encoding.Unicode.GetBytes("{\r\n\"events\": [" + Environment.NewLine);
+                await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
                 await foreach (PartitionEvent receivedEvent in eventHubClient.ReadEventsFromPartitionAsync(partitionId, startingPosition, cancellationSource.Token))
                 {
                     count++;
@@ -113,9 +115,11 @@ namespace CheckMalformedEvents
                         break;
                     }
 
-                    byte[] encodedText = Encoding.Unicode.GetBytes(data + Environment.NewLine);
+                    encodedText = Encoding.Unicode.GetBytes(data + "," + Environment.NewLine);
                     await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
                 }
+                encodedText = Encoding.Unicode.GetBytes("{}]\r\n}" + Environment.NewLine);
+                await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
             }
             Console.WriteLine($"\r\n Output located at: {path}");
             return cancellationSource;
