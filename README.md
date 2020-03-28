@@ -3,8 +3,9 @@
 Copy appsettings-sample.json to appsettings.json
   1. Add your event hub connection string
   2. Add Consumer Group
-  3. Add Partition, offset and sequence to get the events you need to read
+  3. Add Partition, sequence to get the events you need to read
   4. Add ProcessingEnqueueEndTimeUTC - In Streaming Analytics Jobs, you sometimes get an error with start processing time, end processing time, this allows you to stop streaming on the end processing time.
+  5. Add TerminateAfterSeconds to ensure it does not run for too long!
 
 Example Error from Streaming Analytics
 

@@ -34,7 +34,7 @@ namespace CheckMalformedEvents
                 Console.WriteLine($"{e.Message}");
 
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine($"{e.Message}");
             }
@@ -74,8 +74,6 @@ namespace CheckMalformedEvents
 
             cancellationSource.CancelAfter(TimeSpan.FromSeconds(TerminateAfterSeconds));
             string path = Path.Combine(Directory.GetCurrentDirectory(), $"{Path.GetRandomFileName()}.json");
-
-
 
             int count = 0;
             byte[] encodedText;
@@ -126,7 +124,7 @@ namespace CheckMalformedEvents
 
         private static async Task<byte[]> FinaliseFile(byte[] encodedText, FileStream sourceStream)
         {
-            await sourceStream.WriteAsync(encodedText, 0, encodedText.Length -6); //Remove ,\r\n on last line
+            await sourceStream.WriteAsync(encodedText, 0, encodedText.Length - 6); //Remove ,\r\n on last line
             encodedText = Encoding.Unicode.GetBytes("]\r\n}" + Environment.NewLine);
             await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
             return encodedText;
