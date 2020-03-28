@@ -40,6 +40,10 @@ namespace CheckMalformedEvents
                 Console.WriteLine($"{e.Message}");
 
             }
+            catch(Exception e)
+            {
+                Console.WriteLine($"{e.Message}");
+            }
         }
 
         private static void Init()
