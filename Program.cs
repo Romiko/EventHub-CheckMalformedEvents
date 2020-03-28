@@ -126,7 +126,7 @@ namespace CheckMalformedEvents
 
         private static async Task<byte[]> FinaliseFile(byte[] encodedText, FileStream sourceStream)
         {
-            await sourceStream.WriteAsync(encodedText, 0, encodedText.Length -6); //Remove Comma on last line of array
+            await sourceStream.WriteAsync(encodedText, 0, encodedText.Length -6); //Remove ,\r\n on last line
             encodedText = Encoding.Unicode.GetBytes("]\r\n}" + Environment.NewLine);
             await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
             return encodedText;
