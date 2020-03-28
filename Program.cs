@@ -1,6 +1,6 @@
-﻿ using System;
-using System.Collections.Generic;
+﻿using System;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure.Messaging.EventHubs.Consumer;
@@ -12,37 +12,21 @@ namespace CheckMalformedEvents
     class GetMalformedEvents
     {
         private static string partitionId;
+        private static IConfigurationRoot configuration;
+        private static string connectionString;
+        private static string consumergroup;
+        private static EventHubConsumerClient eventHubClient;
 
         static void Main(string[] args)
 
         {
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
-
-            IConfigurationRoot configuration = builder.Build();
-
-            var connectionString = configuration.GetConnectionString("eventhub");
-            var consumergroup = configuration.GetConnectionString("consumergroup");
-            var eventHubClient = new EventHubConsumerClient(consumergroup, connectionString);
-
-            Console.WriteLine("This tool is used to troubleshoot malformed messages in an Azure EventHub");
-            Console.WriteLine("Sample Error Message to troubleshoot - First get the errors from the Streaming Analytics Jobs Input blade.\r\n");
+            Init();
+            ShowIntro();
 
             partitionId = configuration["partitionId"];
-            long offset;
-            if (long.TryParse(configuration["offsetNumber"], out offset) == false)
-            {
-                Console.Write("Enter a valid offset value.");
-                return;
-            }
 
-            long sequenceNumber;
-            if (long.TryParse(configuration["SequenceNumber"], out sequenceNumber) == false)
-            {
-                Console.Write("Enter a valid SequenceNumber value.");
-                return;
-            }
+            if (long.TryParse(configuration["SequenceNumber"], out long sequenceNumber) == false)
+                throw new ArgumentException("Invalid SequenceNumber");
 
             var processingEnqueueEndTimeUTC = DateTimeOffset.Parse(configuration["ProcessingEnqueueEndTimeUTC"]);
 
@@ -58,58 +42,77 @@ namespace CheckMalformedEvents
             }
         }
 
+        private static void Init()
+        {
+            var builder = new ConfigurationBuilder()
+                            .SetBasePath(Directory.GetCurrentDirectory())
+                            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+
+            configuration = builder.Build();
+
+            connectionString = configuration.GetConnectionString("eventhub");
+            consumergroup = configuration.GetConnectionString("consumergroup");
+            eventHubClient = new EventHubConsumerClient(consumergroup, connectionString);
+        }
+
+        private static void ShowIntro()
+        {
+            Console.WriteLine("This tool is used to troubleshoot malformed messages in an Azure EventHub");
+            Console.WriteLine("Sample Error Message to troubleshoot - First get the errors from the Streaming Analytics Jobs Input blade.\r\n");
+        }
+
         private static async Task<CancellationTokenSource> GetEvents(EventHubConsumerClient eventHubClient, EventPosition startingPosition, DateTimeOffset endEnqueueTime)
         {
             var cancellationSource = new CancellationTokenSource();
-            cancellationSource.CancelAfter(TimeSpan.FromMinutes(5));
-            string path = Path.Combine(Directory.GetCurrentDirectory(), "Events.json");
-            using var sw = new StreamWriter(path);
+            if (int.TryParse(configuration["TerminateAfterSeconds"], out int TerminateAfterSeconds) == false)
+                throw new ArgumentException("Invalid TerminateAfterSeconds");
 
-            var dataList = new List<dynamic>();
-            var jsettings = new JsonSerializerSettings
-            {
-                Formatting = Formatting.Indented
-            };
+            cancellationSource.CancelAfter(TimeSpan.FromSeconds(TerminateAfterSeconds));
+            string path = Path.Combine(Directory.GetCurrentDirectory(), $"{Path.GetRandomFileName()}.json");
+
+
 
             int count = 0;
-            await foreach (PartitionEvent receivedEvent in eventHubClient.ReadEventsFromPartitionAsync(partitionId, startingPosition, cancellationSource.Token))
+            using FileStream sourceStream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Write, bufferSize: 4096, useAsync: true);
             {
-                using var sr = new StreamReader(receivedEvent.Data.BodyAsStream);
-                var data = sr.ReadToEnd();
-                var partition = receivedEvent.Data.PartitionKey;
-                var offset = receivedEvent.Data.Offset;
-                var sequence = receivedEvent.Data.SequenceNumber;
-
-                try
+                await foreach (PartitionEvent receivedEvent in eventHubClient.ReadEventsFromPartitionAsync(partitionId, startingPosition, cancellationSource.Token))
                 {
-                    dynamic message = JsonConvert.DeserializeObject(data);
-                    message.AzureEventHubsPartition = partition;
-                    message.AzureEventHubsOffset = offset;
-                    message.AzureEventHubsSequence = sequence;
-                    message.AzureEnqueuedTime = receivedEvent.Data.EnqueuedTime.ToString("o");
-                    dataList.Add(message);
+                    count++;
+                    using var sr = new StreamReader(receivedEvent.Data.BodyAsStream);
+                    var data = sr.ReadToEnd();
+                    var partition = receivedEvent.Data.PartitionKey;
+                    var offset = receivedEvent.Data.Offset;
+                    var sequence = receivedEvent.Data.SequenceNumber;
 
-                    if (count == 0)
-                        Console.WriteLine($"First Message EnqueueTime: {message.AzureEnqueuedTime}, Offset: {message.AzureEventHubsOffset}, Sequence: {message.AzureEventHubsSequence}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Serialization issue Partition: { partition}, Offset: {offset}, Sequence Number: { sequence }");
-                    Console.WriteLine(ex.Message);
-                }
+                    try
+                    {
+                        dynamic message = JsonConvert.DeserializeObject(data);
+                        message.AzureEventHubsPartition = partition;
+                        message.AzureEventHubsOffset = offset;
+                        message.AzureEventHubsSequence = sequence;
+                        message.AzureEnqueuedTime = receivedEvent.Data.EnqueuedTime.ToString("o");
 
-                if (receivedEvent.Data.EnqueuedTime > endEnqueueTime)
-                {
-                    Console.WriteLine($"Last Message EnqueueTime: {receivedEvent.Data.EnqueuedTime:o}, Offset: {receivedEvent.Data.Offset}, Sequence: {receivedEvent.Data.SequenceNumber}");
-                    Console.WriteLine($"Total Events Streamed: {dataList.Count}");
-                    Console.WriteLine($"-----------");
-                    break;
+                        if (count == 0)
+                            Console.WriteLine($"First Message EnqueueTime: {message.AzureEnqueuedTime}, Offset: {message.AzureEventHubsOffset}, Sequence: {message.AzureEventHubsSequence}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Serialization issue Partition: { partition}, Offset: {offset}, Sequence Number: { sequence }");
+                        Console.WriteLine(ex.Message);
+                    }
+
+                    if (receivedEvent.Data.EnqueuedTime > endEnqueueTime)
+                    {
+                        Console.WriteLine($"Last Message EnqueueTime: {receivedEvent.Data.EnqueuedTime:o}, Offset: {receivedEvent.Data.Offset}, Sequence: {receivedEvent.Data.SequenceNumber}");
+                        Console.WriteLine($"Total Events Streamed: {count}");
+                        Console.WriteLine($"-----------");
+                        break;
+                    }
+
+                    byte[] encodedText = Encoding.Unicode.GetBytes(data + Environment.NewLine);
+                    await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
                 }
-                count++;
             }
-
-            var output = JsonConvert.SerializeObject(dataList, jsettings);
-            sw.WriteLine(output);
             Console.WriteLine($"\r\n Output located at: {path}");
             return cancellationSource;
         }
