@@ -16,6 +16,8 @@ namespace CheckMalformedEvents
         private static string connectionString;
         private static string consumergroup;
         private static EventHubConsumerClient eventHubClient;
+        private static EventPosition startingPosition;
+        private static DateTimeOffset processingEnqueueEndTimeUTC;
 
         static void Main(string[] args)
 
@@ -23,14 +25,6 @@ namespace CheckMalformedEvents
             Init();
             ShowIntro();
 
-            partitionId = configuration["partitionId"];
-
-            if (long.TryParse(configuration["SequenceNumber"], out long sequenceNumber) == false)
-                throw new ArgumentException("Invalid SequenceNumber");
-
-            var processingEnqueueEndTimeUTC = DateTimeOffset.Parse(configuration["ProcessingEnqueueEndTimeUTC"]);
-
-            EventPosition startingPosition = EventPosition.FromSequenceNumber(sequenceNumber);
             try
             {
                 GetEvents(eventHubClient, startingPosition, processingEnqueueEndTimeUTC).Wait();
@@ -57,6 +51,13 @@ namespace CheckMalformedEvents
             connectionString = configuration.GetConnectionString("eventhub");
             consumergroup = configuration.GetConnectionString("consumergroup");
             eventHubClient = new EventHubConsumerClient(consumergroup, connectionString);
+
+            partitionId = configuration["partitionId"];
+            if (long.TryParse(configuration["SequenceNumber"], out long sequenceNumber) == false)
+                throw new ArgumentException("Invalid SequenceNumber");
+
+            processingEnqueueEndTimeUTC = DateTimeOffset.Parse(configuration["ProcessingEnqueueEndTimeUTC"]);
+            startingPosition = EventPosition.FromSequenceNumber(sequenceNumber);
         }
 
         private static void ShowIntro()
@@ -92,14 +93,7 @@ namespace CheckMalformedEvents
 
                     try
                     {
-                        dynamic message = JsonConvert.DeserializeObject(data);
-                        message.AzureEventHubsPartition = partition;
-                        message.AzureEventHubsOffset = offset;
-                        message.AzureEventHubsSequence = sequence;
-                        message.AzureEnqueuedTime = receivedEvent.Data.EnqueuedTime.ToString("o");
-
-                        if (count == 0)
-                            Console.WriteLine($"First Message EnqueueTime: {message.AzureEnqueuedTime}, Offset: {message.AzureEventHubsOffset}, Sequence: {message.AzureEventHubsSequence}");
+                        IsEventValidJson(count, receivedEvent, data, partition, offset, sequence);
                     }
                     catch (Exception ex)
                     {
@@ -123,6 +117,18 @@ namespace CheckMalformedEvents
             }
             Console.WriteLine($"\r\n Output located at: {path}");
             return cancellationSource;
+        }
+
+        private static void IsEventValidJson(int count, PartitionEvent receivedEvent, string data, string partition, long offset, long sequence)
+        {
+            dynamic message = JsonConvert.DeserializeObject(data);
+            message.AzureEventHubsPartition = partition;
+            message.AzureEventHubsOffset = offset;
+            message.AzureEventHubsSequence = sequence;
+            message.AzureEnqueuedTime = receivedEvent.Data.EnqueuedTime.ToString("o");
+
+            if (count == 0)
+                Console.WriteLine($"First Message EnqueueTime: {message.AzureEnqueuedTime}, Offset: {message.AzureEventHubsOffset}, Sequence: {message.AzureEventHubsSequence}");
         }
     }
 }
