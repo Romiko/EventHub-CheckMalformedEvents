@@ -78,12 +78,17 @@ namespace CheckMalformedEvents
 
 
             int count = 0;
+            byte[] encodedText;
             using FileStream sourceStream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Write, bufferSize: 4096, useAsync: true);
             {
-                byte[] encodedText = Encoding.Unicode.GetBytes("{\r\n\"events\": [" + Environment.NewLine);
+                encodedText = Encoding.Unicode.GetBytes("{\r\n\"events\": [" + Environment.NewLine);
                 await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
+                encodedText = Encoding.Unicode.GetBytes("");
                 await foreach (PartitionEvent receivedEvent in eventHubClient.ReadEventsFromPartitionAsync(partitionId, startingPosition, cancellationSource.Token))
                 {
+                    if (encodedText.Length > 0)
+                        await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
+
                     count++;
                     using var sr = new StreamReader(receivedEvent.Data.BodyAsStream);
                     var data = sr.ReadToEnd();
@@ -112,11 +117,19 @@ namespace CheckMalformedEvents
                     encodedText = Encoding.Unicode.GetBytes(data + "," + Environment.NewLine);
                     await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
                 }
-                encodedText = Encoding.Unicode.GetBytes("{}]\r\n}" + Environment.NewLine);
-                await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
+                encodedText = await FinaliseFile(encodedText, sourceStream);
             }
+
             Console.WriteLine($"\r\n Output located at: {path}");
             return cancellationSource;
+        }
+
+        private static async Task<byte[]> FinaliseFile(byte[] encodedText, FileStream sourceStream)
+        {
+            await sourceStream.WriteAsync(encodedText, 0, encodedText.Length -6); //Remove Comma on last line of array
+            encodedText = Encoding.Unicode.GetBytes("]\r\n}" + Environment.NewLine);
+            await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
+            return encodedText;
         }
 
         private static void IsEventValidJson(int count, PartitionEvent receivedEvent, string data, string partition, long offset, long sequence)
