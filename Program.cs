@@ -96,7 +96,10 @@ namespace CheckMalformedEvents
 
                     try
                     {
-                        IsEventValidJson(count, receivedEvent, data, partition, offset, sequence);
+                        dynamic message = AddMetaData(count, receivedEvent, data, partition, offset, sequence);
+                        var textWithMetaData = JsonConvert.SerializeObject(message);
+                        encodedText = Encoding.Unicode.GetBytes(textWithMetaData + "," + Environment.NewLine);
+                        await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
                     }
                     catch (Exception ex)
                     {
@@ -111,9 +114,6 @@ namespace CheckMalformedEvents
                         Console.WriteLine($"-----------");
                         break;
                     }
-
-                    encodedText = Encoding.Unicode.GetBytes(data + "," + Environment.NewLine);
-                    await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
                 }
                 encodedText = await FinaliseFile(encodedText, sourceStream);
             }
@@ -130,7 +130,7 @@ namespace CheckMalformedEvents
             return encodedText;
         }
 
-        private static void IsEventValidJson(int count, PartitionEvent receivedEvent, string data, string partition, long offset, long sequence)
+        private static dynamic AddMetaData(int count, PartitionEvent receivedEvent, string data, string partition, long offset, long sequence)
         {
             dynamic message = JsonConvert.DeserializeObject(data);
             message.AzureEventHubsPartition = partition;
@@ -140,6 +140,8 @@ namespace CheckMalformedEvents
 
             if (count == 0)
                 Console.WriteLine($"First Message EnqueueTime: {message.AzureEnqueuedTime}, Offset: {message.AzureEventHubsOffset}, Sequence: {message.AzureEventHubsSequence}");
+
+            return message;
         }
     }
 }
