@@ -73,7 +73,7 @@ namespace CheckMalformedEvents
                 throw new ArgumentException("Invalid TerminateAfterSeconds");
 
             cancellationSource.CancelAfter(TimeSpan.FromSeconds(TerminateAfterSeconds));
-            string path = Path.Combine(Directory.GetCurrentDirectory(), $"{Path.GetRandomFileName()}.json");
+            string path = Path.Combine(Directory.GetCurrentDirectory(), $"output-{Path.GetRandomFileName()}.json");
 
             int count = 0;
             byte[] encodedText;
