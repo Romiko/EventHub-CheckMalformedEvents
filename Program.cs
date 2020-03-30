@@ -99,7 +99,6 @@ namespace CheckMalformedEvents
                         dynamic message = AddMetaData(count, receivedEvent, data, partition, offset, sequence);
                         var textWithMetaData = JsonConvert.SerializeObject(message);
                         encodedText = Encoding.Unicode.GetBytes(textWithMetaData + "," + Environment.NewLine);
-                        await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
                     }
                     catch (Exception ex)
                     {
